@@ -1,9 +1,15 @@
 import React, { useState } from "react";
 import { Smartphone, ShieldCheck, CheckCircle, Copy, ExternalLink, Lock, Server } from "lucide-react";
 
-export default function Settings({ config, setConfig, language, t }) {
+export default function Settings({ config: initialConfig, onSaveConfig, language, t }) {
+  const [config, setConfig] = useState(initialConfig);
   const [copied, setCopied] = useState(false);
   const isRtl = language === "ar";
+
+  // Update local config when prop changes
+  React.useEffect(() => {
+    setConfig(initialConfig);
+  }, [initialConfig]);
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
@@ -92,7 +98,17 @@ export default function Settings({ config, setConfig, language, t }) {
               </div>
             </div>
 
-            <button className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-black transition-all shadow-2xl shadow-slate-200 flex items-center justify-center space-x-3 rtl:space-x-reverse active:scale-[0.98]">
+            <button
+              onClick={async () => {
+                try {
+                  await onSaveConfig(config);
+                  alert("Configuration saved successfully!");
+                } catch (error) {
+                  alert("Failed to save configuration. Please try again.");
+                }
+              }}
+              className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-black transition-all shadow-2xl shadow-slate-200 flex items-center justify-center space-x-3 rtl:space-x-reverse active:scale-[0.98]"
+            >
               <CheckCircle size={18} className="text-emerald-400" />
               <span>{t("validateDeploy")}</span>
             </button>

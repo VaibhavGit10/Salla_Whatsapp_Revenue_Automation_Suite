@@ -1,7 +1,7 @@
 import React from "react";
 import { Search, Filter, Download, MessageSquare } from "lucide-react";
 
-export default function Logs({ logs, language, t }) {
+export default function Logs({ logs, onRefresh, language, t }) {
   const isRtl = language === "ar";
 
   return (
@@ -28,7 +28,10 @@ export default function Logs({ logs, language, t }) {
             <Filter size={18} />
           </button>
 
-          <button className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm">
+          <button
+            onClick={onRefresh}
+            className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm"
+          >
             <Download size={18} />
           </button>
         </div>
@@ -53,26 +56,26 @@ export default function Logs({ logs, language, t }) {
               {logs.map((log) => (
                 <tr key={log.id} className="hover:bg-slate-50/50 transition-colors group cursor-default">
                   <td className="px-10 py-6 text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
-                    {log.customerPhone}
+                    {log.customer_phone || log.customerPhone}
                   </td>
-                  <td className="px-10 py-6 text-xs text-slate-500 font-mono tracking-tighter">{log.orderId}</td>
+                  <td className="px-10 py-6 text-xs text-slate-500 font-mono tracking-tighter">{log.order_id || log.orderId || "N/A"}</td>
                   <td className="px-10 py-6">
                     <span className="text-[10px] font-black px-3 py-2 bg-slate-100 rounded-xl text-slate-500 uppercase tracking-tighter border border-slate-200 group-hover:bg-white transition-colors">
-                      {String(log.flowType).replace("_", " ")}
+                      {String(log.flow_type || log.flowType).replace("_", " ")}
                     </span>
                   </td>
                   <td className="px-10 py-6">
                     <div className="flex items-center space-x-3 rtl:space-x-reverse">
                       <div
                         className={`w-2.5 h-2.5 rounded-full shadow-sm ${
-                          log.status === "delivered" ? "bg-emerald-500" : log.status === "read" ? "bg-blue-500" : "bg-red-500"
+                          log.status === "delivered" || log.status === "read" ? "bg-emerald-500" : log.status === "sent" ? "bg-blue-500" : "bg-red-500"
                         }`}
                       />
                       <span className="text-xs font-black text-slate-700 capitalize tracking-tight">{log.status}</span>
                     </div>
                   </td>
                   <td className={`px-10 py-6 text-[11px] text-slate-400 font-black uppercase tracking-widest tabular-nums ${isRtl ? "text-left" : "text-right"}`}>
-                    {log.timestamp}
+                    {log.timestamp ? new Date(log.timestamp).toLocaleString() : "N/A"}
                   </td>
                 </tr>
               ))}

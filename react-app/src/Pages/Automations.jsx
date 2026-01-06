@@ -22,7 +22,7 @@ const TEMPLATE_VARIABLES = [
   { label: "Link", value: "{{cart_link}}", icon: <LinkIcon size={14} /> },
 ];
 
-export default function Automations({ flows, setFlows, language, t }) {
+export default function Automations({ flows, onSaveFlow, onDeleteFlow, language, t }) {
   const [selectedFlow, setSelectedFlow] = useState(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -46,21 +46,39 @@ export default function Automations({ flows, setFlows, language, t }) {
     }, 300);
   };
 
-  const toggleFlowStatus = (id, e) => {
+  const toggleFlowStatus = async (id, e) => {
     e.stopPropagation();
-    setFlows((prev) =>
-      prev.map((f) =>
-        f.id === id
-          ? { ...f, status: f.status === FlowStatus.ACTIVE ? FlowStatus.INACTIVE : FlowStatus.ACTIVE }
-          : f
-      )
-    );
+  
+    const flow = flows.find((f) => f.id === id);
+    if (!flow) return;
+  
+    const updated = {
+      ...flow,
+      status:
+        flow.status === FlowStatus.ACTIVE
+          ? FlowStatus.INACTIVE
+          : FlowStatus.ACTIVE,
+    };
+  
+    try {
+      await onSaveFlow(updated);
+      // ✅ Parent will re-fetch / update flows
+    } catch (error) {
+      console.error("Failed to update flow status:", error);
+      alert("Failed to update flow status. Please try again.");
+    }
   };
+  
 
-  const deleteFlow = (id, e) => {
+  const deleteFlow = async (id, e) => {
     e.stopPropagation();
     if (window.confirm("Delete this automation?")) {
-      setFlows((prev) => prev.filter((f) => f.id !== id));
+      try {
+        await onDeleteFlow(id);
+      } catch (error) {
+        console.error("Failed to delete flow:", error);
+        alert("Failed to delete flow. Please try again.");
+      }
     }
   };
 
@@ -92,16 +110,26 @@ export default function Automations({ flows, setFlows, language, t }) {
     setIsAddingNew(true);
   };
 
-  const saveChanges = () => {
+  const saveChanges = async () => {
     if (!selectedFlow) return;
 
-    if (isAddingNew) {
-      setFlows([...flows, selectedFlow]);
-    } else {
-      setFlows((prev) => prev.map((f) => (f.id === selectedFlow.id ? selectedFlow : f)));
+    try {
+      // Ensure flow has required fields
+      const flowToSave = {
+        ...selectedFlow,
+        type: selectedFlow.type || FlowType.CUSTOM,
+        status: selectedFlow.status || FlowStatus.INACTIVE,
+        template: selectedFlow.template || "",
+        delayMinutes: selectedFlow.delayMinutes || 0,
+        description: selectedFlow.description || ""
+      };
+      
+      await onSaveFlow(flowToSave);
+      handleCloseDrawer();
+    } catch (error) {
+      console.error("Failed to save flow:", error);
+      alert("Failed to save flow. Please try again.");
     }
-
-    handleCloseDrawer();
   };
 
   return (
@@ -255,7 +283,7 @@ export default function Automations({ flows, setFlows, language, t }) {
                   <div className="space-y-2">
                     <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1 rtl:mr-1 rtl:ml-0">{t("systemUuid")}</label>
                     <div className="w-full bg-slate-100 border border-slate-200 rounded-2xl p-4 font-mono text-[11px] text-slate-500 uppercase flex items-center justify-center tracking-tight">
-                      {selectedFlow.id}
+                      {selectedFlow.id || "New Flow"}
                     </div>
                   </div>
                 </div>

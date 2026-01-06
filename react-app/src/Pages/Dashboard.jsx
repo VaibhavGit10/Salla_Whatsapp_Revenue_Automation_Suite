@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   ShoppingCart,
   CheckCircle,
@@ -8,7 +8,10 @@ import {
   Users,
   Zap,
   Calendar,
+  X,
+  ExternalLink,
 } from "lucide-react";
+import { apiService } from "../services/api";
 
 const MOCK_DATA = [
   { name: "Sat", revenue: 4200 },
@@ -20,11 +23,97 @@ const MOCK_DATA = [
   { name: "Fri", revenue: 8500 },
 ];
 
-export default function Dashboard({ language, t }) {
+export default function Dashboard({ language, t, sallaInstalled, setSallaInstalled }) {
   const isRtl = language === "ar";
+  const [stats, setStats] = useState({
+    total_sent: 0,
+    delivered: 0,
+    failed: 0,
+    delivery_rate: 0,
+    active_flows: 0,
+    revenue: 0,
+    abandoned_carts: 0,
+    cod_confirmations: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [sallaAuthUrl, setSallaAuthUrl] = useState("");
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        // Check if store ID is available
+        const storeId = apiService.getStoreId();
+        if (!storeId) {
+          setLoading(false);
+          return;
+        }
+
+        const data = await apiService.getDashboardStats();
+        setStats(data);
+      } catch (error) {
+        console.error("Failed to load stats:", error);
+        // If it's a 400 error (missing store_id), don't show error
+        if (error.message && !error.message.includes("Missing store_id")) {
+          console.warn("Stats loading failed:", error);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadStats();
+
+    // Load Salla auth URL (doesn't require store ID)
+    apiService.getSallaAuthUrl().then(setSallaAuthUrl).catch((err) => {
+      console.warn("Failed to load Salla auth URL:", err);
+    });
+  }, []);
 
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-700">
+      {/* Salla Installation Banner */}
+      {sallaInstalled && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 flex items-center justify-between">
+          <div className="flex items-center space-x-4 rtl:space-x-reverse">
+            <CheckCircle className="text-emerald-600" size={24} />
+            <div>
+              <h3 className="font-black text-emerald-900 text-sm">Salla Connected Successfully!</h3>
+              <p className="text-xs text-emerald-700 mt-1">Your store is now connected and ready to automate WhatsApp messages.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setSallaInstalled(false)}
+            className="text-emerald-600 hover:text-emerald-800"
+          >
+            <X size={20} />
+          </button>
+        </div>
+      )}
+
+      {/* Salla Installation Prompt */}
+      {!sallaInstalled && sallaAuthUrl && (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 flex items-center justify-between">
+          <div className="flex items-center space-x-4 rtl:space-x-reverse">
+            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
+              <ShoppingCart className="text-white" size={24} />
+            </div>
+            <div>
+              <h3 className="font-black text-blue-900 text-sm">Connect Your Salla Store</h3>
+              <p className="text-xs text-blue-700 mt-1">Install the app to start automating WhatsApp messages for orders and carts.</p>
+            </div>
+          </div>
+          <a
+            href={sallaAuthUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-blue-600 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition flex items-center space-x-2 rtl:space-x-reverse"
+          >
+            <span>Install Salla App</span>
+            <ExternalLink size={14} />
+          </a>
+        </div>
+      )}
+
       {/* Header Row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -60,7 +149,7 @@ export default function Dashboard({ language, t }) {
             </div>
 
             <h3 className="text-4xl font-black text-slate-900 tracking-tighter">
-              SAR 34,910<span className="text-slate-300 text-xl">.00</span>
+              SAR {stats.revenue?.toLocaleString() || "0"}<span className="text-slate-300 text-xl">.00</span>
             </h3>
           </div>
 
@@ -76,7 +165,7 @@ export default function Dashboard({ language, t }) {
         <StatCardSimple
           icon={<ShoppingCart size={20} />}
           label={t("abandonedCarts")}
-          value="284"
+          value={stats.abandoned_carts?.toString() || "0"}
           subValue={t("recovery")}
           color="emerald"
         />
@@ -84,8 +173,8 @@ export default function Dashboard({ language, t }) {
         <StatCardSimple
           icon={<CheckCircle size={20} />}
           label={t("codConfirmation")}
-          value="94.8%"
-          subValue="+4% this week"
+          value={stats.cod_confirmations?.toString() || "0"}
+          subValue="Confirmed"
           color="blue"
         />
       </div>
@@ -94,26 +183,26 @@ export default function Dashboard({ language, t }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         <HighlightCard
           label={t("totalSent")}
-          value="2.8k"
+          value={stats.total_sent?.toLocaleString() || "0"}
           icon={<MessageSquare size={16} />}
           color="emerald"
         />
         <HighlightCard
           label={t("activeFlows")}
-          value="06"
+          value={stats.active_flows?.toString().padStart(2, "0") || "00"}
           icon={<Zap size={16} />}
           color="orange"
         />
         <HighlightCard
-          label={t("ksaReach")}
-          value="1.8k"
-          icon={<Users size={16} />}
+          label={t("delivered")}
+          value={`${stats.delivery_rate || 0}%`}
+          icon={<CheckCircle size={16} />}
           color="indigo"
         />
         <HighlightCard
-          label={t("delivered")}
-          value="99.2%"
-          icon={<CheckCircle size={16} />}
+          label={t("failed")}
+          value={stats.failed?.toString() || "0"}
+          icon={<MessageSquare size={16} />}
           color="blue"
         />
       </div>
